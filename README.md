@@ -81,6 +81,7 @@ The `config.py` file contains all the configuration options. Here are the key se
 ##  ⚠️IMPORTANT BROWSER AUTO OPEN NOTICE⚠️
 
 *Note 1*
+
 This script was built with the understanding that the links provided to you are uniquely generated. Until I can confirm otherwise, you should be very careful about using BOTH the auto browser open feature and the Telegram notification at the same time.
 
 "Why?" I hear you ask - well if the link is unique, if it has automatically opened in your browser, then it's probably not going to work for you if you open it from Telegram on another device.
@@ -92,6 +93,7 @@ So, if your main use case is that you want to open the link from Telegram (you m
 This will stop the browser from auto-opening the new links, but will still send them to you via Telegram.
 
 *Note 2*
+
 If you have the browser auto-open enabled, I'd strongly recommend running the script with the "--test" arg at least once. This will let you test to see if the browser opens correctly (it uses your default OS browser). After the configured cooldown period, the script will run in normal mode, so feel free to start using the "--test" arg every time for safety. There are a lot more args listed below, mostly used for me to test things work with the script, but I left them in the code in case you find them useful.
 
 ---
