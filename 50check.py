@@ -10,6 +10,7 @@ import asyncio
 from datetime import datetime, timedelta
 import signal
 import sys
+import threading
 
 # Import winsound only on Windows
 if platform.system() == 'Windows':
@@ -73,7 +74,9 @@ class AsyncLoopManager:
             
     def run_coroutine(self, coro):
         """Run a coroutine in the current loop"""
-        if self.loop:
+        if self.loop and self.loop.is_running():
+            return asyncio.run_coroutine_threadsafe(coro, self.loop)
+        elif self.loop:
             return self.loop.run_until_complete(coro)
         return None
 
@@ -81,31 +84,46 @@ class TelegramBot:
     def __init__(self, token, chat_id):
         self.token = token
         self.chat_id = chat_id
-        self.bot = telegram.Bot(token=token)
         self.connected = False
         self.backoff_time = TELEGRAM_CONFIG["initial_backoff"]
         self.retry_count = 0
         self.last_connection_attempt = None
-        self.application = None  # Add this line
-
+        self.application = None
+        
     async def start(self):
         """Start the Telegram bot with error handling and backoff"""
         try:
-            # Simple connection test
-            await self.bot.get_me()
+            # Build the application
+            self.application = (
+                Application.builder()
+                .token(self.token)
+                .read_timeout(30)
+                .write_timeout(30)
+                .build()
+            )
+            
+            # Add command handlers
+            async def status_handler(update, context):
+                status_message = generate_status_message()
+                await update.message.reply_text(status_message, parse_mode='HTML')
+            
+            self.application.add_handler(CommandHandler("status", status_handler))
+            
+            # Start the application and polling
+            await self.application.initialize()
+            await self.application.start()
+            await self.application.updater.start_polling(
+                poll_interval=1.0,
+                timeout=30,
+                bootstrap_retries=-1,
+                read_timeout=30,
+                write_timeout=30
+            )
+            
             self.connected = True
             self.backoff_time = TELEGRAM_CONFIG["initial_backoff"]
             self.retry_count = 0
             print(f"[{get_timestamp()}] ✅ Telegram bot connected successfully")
-
-            # Initialize the application and add command handlers
-            self.application = Application.builder().token(self.token).build()
-            self.application.add_handler(CommandHandler("status", status_command))
-
-            # Start polling
-            await self.application.initialize()
-            await self.application.start()
-            await self.application.updater.start_polling()
 
         except Exception as e:
             self.connected = False
@@ -114,9 +132,12 @@ class TelegramBot:
     async def stop(self):
         """Stop the Telegram bot gracefully"""
         if self.application:
-            await self.application.updater.stop()
-            await self.application.stop()
-            await self.application.shutdown()
+            try:
+                await self.application.updater.stop()
+                await self.application.stop()
+                await self.application.shutdown()
+            except Exception as e:
+                print(f"[{get_timestamp()}] ⚠️ Error during Telegram shutdown: {str(e)}")
         self.connected = False
         print(f"[{get_timestamp()}] ✅ Telegram bot stopped successfully")
 
@@ -126,38 +147,15 @@ class TelegramBot:
             return
             
         try:
-            await self.bot.send_message(
-                chat_id=self.chat_id,
-                text=message,
-                parse_mode='HTML'
-            )
+            if self.application:
+                await self.application.bot.send_message(
+                    chat_id=self.chat_id,
+                    text=message,
+                    parse_mode='HTML'
+                )
         except Exception as e:
             print(f"[{get_timestamp()}] ❌ Failed to send Telegram message: {str(e)}")
             self.connected = False
-
-# Add this function to handle the /status command
-async def status_command(update, context):
-    status_message = generate_status_message()
-    await update.message.reply_text(status_message, parse_mode='HTML')
-
-# Add this function to send a startup message
-async def send_startup_message():
-    """Send a startup message via Telegram with monitoring details"""
-    if not TELEGRAM_CONFIG["enabled"] or not telegram_bot or not telegram_bot.connected:
-        return
-
-    # Generate the startup message
-    startup_message = f"""🚀 NVIDIA Stock Checker Started Successfully!
-🎯 Monitoring: {', '.join(AVAILABLE_SKUS.values())}
-⏱️ Check Interval: {params['check_interval']} seconds
-🔔 Notifications: {'Enabled' if NOTIFICATION_CONFIG['play_sound'] else 'Disabled'}
-🌐 Browser Opening: {'Enabled' if NOTIFICATION_CONFIG['open_browser'] else 'Disabled'}"""
-
-    try:
-        await telegram_bot.send_message(startup_message)
-        print(f"[{get_timestamp()}] ✅ Startup message sent to Telegram")
-    except Exception as e:
-        print(f"[{get_timestamp()}] ❌ Failed to send startup message: {str(e)}")
 
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully"""
@@ -204,6 +202,24 @@ def generate_status_message():
 📈 Requests: {successful_requests:,} successful, {failed_requests:,} failed
 {status_check} Last check: {last_check_str} ({status_text})
 🎯 Monitoring: {', '.join(AVAILABLE_SKUS.values())}"""
+
+async def send_startup_message():
+    """Send a startup message via Telegram with monitoring details"""
+    if not TELEGRAM_CONFIG["enabled"] or not telegram_bot or not telegram_bot.connected:
+        return
+
+    # Generate the startup message
+    startup_message = f"""🚀 NVIDIA Stock Checker Started Successfully!
+🎯 Monitoring: {', '.join(AVAILABLE_SKUS.values())}
+⏱️ Check Interval: {params['check_interval']} seconds
+🔔 Notifications: {'Enabled' if NOTIFICATION_CONFIG['play_sound'] else 'Disabled'}
+🌐 Browser Opening: {'Enabled' if NOTIFICATION_CONFIG['open_browser'] else 'Disabled'}"""
+
+    try:
+        await telegram_bot.send_message(startup_message)
+        print(f"[{get_timestamp()}] ✅ Startup message sent to Telegram")
+    except Exception as e:
+        print(f"[{get_timestamp()}] ❌ Failed to send startup message: {str(e)}")
 
 def send_console_status():
     """Print a status update to the console"""
@@ -501,16 +517,18 @@ if __name__ == "__main__":
         # Initialize loop manager if Telegram is enabled
         if TELEGRAM_CONFIG["enabled"]:
             if TELEGRAM_CONFIG["bot_token"] and TELEGRAM_CONFIG["chat_id"]:
-                # Create and start the async loop manager
-                loop_manager = AsyncLoopManager()
-                loop_manager.start_loop()
-                
-                # Initialize and start the bot
-                telegram_bot = TelegramBot(TELEGRAM_CONFIG["bot_token"], TELEGRAM_CONFIG["chat_id"])
-                
                 try:
+                    # Create and start the async loop manager
+                    loop_manager = AsyncLoopManager()
+                    loop_manager.start_loop()
+                    
+                    # Initialize and start the bot
+                    telegram_bot = TelegramBot(TELEGRAM_CONFIG["bot_token"], TELEGRAM_CONFIG["chat_id"])
+                    
+                    # Start the bot and wait for it to connect
                     loop_manager.run_coroutine(telegram_bot.start())
-                    # Give the bot a moment to connect
+                    
+                    # Give the bot a moment to initialize
                     time.sleep(2)
                     
                     if not telegram_bot.connected:
@@ -521,12 +539,21 @@ if __name__ == "__main__":
                         loop_manager = None
                     else:
                         # Send the startup message after successful connection
-                        loop_manager.run_coroutine(send_startup_message())  # <-- Add this line
+                        loop_manager.run_coroutine(send_startup_message())
+                        
+                        # Start a background task to keep the event loop running
+                        def run_event_loop():
+                            loop_manager.loop.run_forever()
+                        
+                        loop_thread = threading.Thread(target=run_event_loop, daemon=True)
+                        loop_thread.start()
+                        
                 except Exception as e:
                     print(f"[{get_timestamp()}] ❌ Failed to initialize Telegram bot: {str(e)}")
                     TELEGRAM_CONFIG["enabled"] = False
                     telegram_bot = None
-                    loop_manager.stop_loop()
+                    if loop_manager:
+                        loop_manager.stop_loop()
                     loop_manager = None
             else:
                 print(f"[{get_timestamp()}] ℹ️ Telegram disabled: missing credentials")
@@ -574,3 +601,4 @@ if __name__ == "__main__":
         running = False
         if telegram_bot and loop_manager:
             loop_manager.run_coroutine(telegram_bot.stop())
+            
