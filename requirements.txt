@@ -1,0 +1,8 @@
+# Core dependencies
+requests>=2.31.0             # For making HTTP requests to NVIDIA API
+python-telegram-bot>=20.3    # For Telegram bot functionality
+
+# Optional dependencies (platform-specific)
+# winsound (Windows) - Built into Python
+# afplay (macOS) - Built into macOS
+# subprocess - Built into Python
