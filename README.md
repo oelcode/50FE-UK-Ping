@@ -24,7 +24,7 @@ The script supports checking of all current 50 series Founders Edition SKU's, cu
 
 - Python 3.8 or higher
 - A Telegram bot token and chat ID (for Telegram notifications)
-- Required Python packages (install via `pip install -r requirements.txt`)
+- Required Python packages: `requests` & `python-telegram-bot`
 
 ---
 
