@@ -1,6 +1,6 @@
 ---
 
-# (DEPRECATED) - Visit https://github.com/oelcode/50FE-UK-Ping/
+# (DEPRECATED) - Visit https://github.com/oelcode/50FE-Stock-Ping/
 
 Nvidia 50 Series Founders Edition Stock Checker (UK) 🇬🇧
 
