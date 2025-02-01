@@ -1,6 +1,8 @@
 ---
 
-# Nvidia 50 Series Founders Edition Stock Checker (UK) 🇬🇧
+# (DEPRECATED) - Visit https://github.com/oelcode/50FE-UK-Ping/
+
+Nvidia 50 Series Founders Edition Stock Checker (UK) 🇬🇧
 
 A Python script to monitor 50 Series Founders Edition graphics card stock, allowing you to immediately open a browser window to the product page and/or send notifications via Telegram when stock changes are detected.
 
