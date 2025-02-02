@@ -2,11 +2,11 @@
 
 # (DEPRECATED) - Visit https://github.com/oelcode/50FE-Stock-Ping/ - NEW VERSION SUPPORTING GLOBAL LOCALES AND EASIER SETUP.
 
-Nvidia 50 Series Founders Edition Stock Checker (UK) 🇬🇧
+~~Nvidia 50 Series Founders Edition Stock Checker (UK) 🇬🇧~~
 
-A Python script to monitor 50 Series Founders Edition graphics card stock, allowing you to immediately open a browser window to the product page and/or send notifications via Telegram when stock changes are detected.
+~~A Python script to monitor 50 Series Founders Edition graphics card stock, allowing you to immediately open a browser window to the product page and/or send notifications via Telegram when stock changes are detected.~~
 
-The script supports checking of all current 50 series Founders Edition SKU's, customisable check intervals (2 secs default), and notifications via sound, browser opening, and Telegram messages.
+~~The script supports checking of all current 50 series Founders Edition SKU's, customisable check intervals (2 secs default), and notifications via sound, browser opening, and Telegram messages.~~
 
 ---
 
